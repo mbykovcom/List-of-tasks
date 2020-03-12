@@ -1,10 +1,118 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <title>List of tasks</title>
 </head>
 <body>
-
+<h2>List of Tasks - Методы API </h2>
+<hr>
+<ul>
+    <li><b>http://localhost:5000/create_user</b> - Создать нового пользователя [POST - запрос]</li>
+    <h3>POST запрос с телом json</h3>
+    <pre>
+        {
+            "login": "user1",
+            "password": "pass",
+        }
+    </pre>
+    <h3>Ответ</h3>
+    <pre>
+        {
+            "status": 201,
+            "message": "user user1 created"
+        }
+    </pre>
+    <li><b>http://localhost:5000/tasks</b> - Получение списка задач [GET - запрос]</li>
+    <h3>Ответ</h3>
+    <pre>
+        {
+            "tasks": [
+                {
+                    "deadline": "2020-03-12 14:00",
+                    "description": "Description 1",
+                    "done": false,
+                    "id": 1,
+                    "title": "Task 1"
+                },
+                {
+                    "deadline": "2020-03-12 14:30",
+                    "description": "Description 2",
+                    "done": false,
+                    "id": 2,
+                    "title": "Task 2"
+                }
+            ]
+        }
+    </pre>
+    <li><b>http://localhost:5000/create_task</b> - Создать новую задачу [POST - запрос]</li>
+    <h3>POST запрос с телом json</h3>
+    <pre>
+        {
+            "title": "Task 3",
+            "description": "Description 3",
+            "deadline": "2020-03-12 15:00"
+        }
+    </pre>
+    <h3>Ответ</h3>
+    <pre>
+        {
+            "status": 201,
+            "task": {
+                "deadline": "2020-03-12 15:00",
+                "description": "Description 3",
+                "done": false,
+                "id": 3,
+                "title": "Task 3"
+            }
+        }
+    </pre>
+    <li><b>http://localhost:5000/tasks/id</b> - Получение задачи по id [GET - запрос]</li>
+    <h3>Ответ</h3>
+    <pre>
+        {
+            "tasks": [
+                {
+                    "deadline": "2020-03-12 15:00",
+                    "description": "Description 3",
+                    "done": false,
+                    "id": 3,
+                    "title": "Task 3"
+                }
+        }
+    </pre>
+    <li><b>http://localhost:5000/done/id</b> - Отметить задачу как выполненную [PUT - запрос]</li>
+    <h3>Ответ</h3>
+    <pre>
+        {
+            "message": "Task 3 was completed",
+            "status": 200,
+            "task": {
+                "deadline": "2020-03-12 15:00",
+                "description": "Description 3",
+                "done": true,
+                "id": 3,
+                "title": "Task 3"
+            }
+        }
+    </pre>
+    <li><b>http://localhost:5000/delete_task/id</b> - Удалить задачу [DELETE - запрос]</li>
+    <h3>Ответ</h3>
+    <pre>
+        {
+            "message": "Task 3 was deleted",
+            "status": 200
+        }
+    </pre>
+    <li><b>http://localhost:5000/delete_user</b> - Удалить пользователя [DELETE - запрос]</li>
+    <h3>Ответ</h3>
+    <pre>
+        {
+            "message": "user user1 was deleted",
+            "status": 200
+        }
+    </pre>
+</ul>
+<hr>
 </body>
 </html>
