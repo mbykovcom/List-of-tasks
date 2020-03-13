@@ -23,7 +23,7 @@
         "message": "user user1 created"
      }
 
-#### 2. Удалить пользователя (url0/delete_user) [DELETE запрос]
+#### 2. Удалить пользователя (url/delete_user) [DELETE запрос]
 	
 ##### Ответ сервера:
 
