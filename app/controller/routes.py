@@ -1,10 +1,8 @@
 from flask import render_template, jsonify, make_response, request
-from sqlalchemy.exc import SQLAlchemyError
 
-from app import app, db, auth
-from app.models import Task, User
-from app.errors import unauthorized, server_error, not_found, bad_request
-import app.services as service
+from app import app, auth
+from app.controller.errors import unauthorized, server_error, not_found, bad_request
+import app.model.services as service
 
 
 @auth.verify_password
@@ -23,7 +21,7 @@ def verify_password(login, password):
 # Web-инструкция к API List of Tasks
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template("index.html")
 
 
 # Получить список всех задач

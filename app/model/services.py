@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy.exc import SQLAlchemyError
 
 from app import db
-from app.models import Task, User
+from app.model.models import Task, User
 
 
 def check_login(login: str) -> User:
