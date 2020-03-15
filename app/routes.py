@@ -1,59 +1,15 @@
-from app import app, db, auth
-from app.models import Task, User
 from flask import render_template, jsonify, make_response, request
-from datetime import datetime
 from sqlalchemy.exc import SQLAlchemyError
 
-
-# The error handling block
-@app.errorhandler(400)
-def bad_request(error: str = None) -> object:
-    response = {'error': 'bad request',
-                'message': ''}
-    if error is not None:
-        response['message'] = f'{error}'
-    return make_response(jsonify(response), 400)
-
-
-@auth.error_handler
-def unauthorized(error: str = 'unauthorized access') -> object:
-    response = {'error': 'unauthorized',
-                'message': ''}
-    if error is not None:
-        response['message'] = f'{error}'
-    return make_response(jsonify(response), 401)
-
-
-@app.errorhandler(404)
-def not_found(error: str = None) -> object:
-    response = {'error': 'not found',
-                'message': ''}
-    if error is not None:
-        response['message'] = f'{error}'
-    return make_response(jsonify(response), 404)
-
-
-@app.errorhandler(405)
-def method_not_allowed(error: str = None) -> object:
-    response = {'error': 'method not allowed',
-                'message': ''}
-    if error is not None:
-        response['message'] = f'{error}'
-    return make_response(jsonify(response), 405)
-
-
-@app.errorhandler(500)
-def server_error(error: str = None) -> object:
-    response = {'error': 'internal server error',
-                'message': ''}
-    if error is not None:
-        response['message'] = f'{error}'
-    return make_response(jsonify(response), 500)
+from app import app, db, auth
+from app.models import Task, User
+from app.errors import unauthorized, server_error, not_found, bad_request
+import app.services as service
 
 
 @auth.verify_password
 def verify_password(login, password):
-    user = User.check_login(login)
+    user = service.check_login(login)
     if user:
         if user.check_password(password):
             return True
@@ -66,25 +22,29 @@ def verify_password(login, password):
 
 # Web-инструкция к API List of Tasks
 @app.route('/')
-def index() -> object:
+def index():
     return render_template('index.html')
 
 
 # Получить список всех задач
 @app.route('/tasks', methods=['GET'])
 @auth.login_required
-def get_tasks() -> object:
-    user = User.check_login(auth.username())    # Если существует возвращает объект User
-    tasks = user.tasks.all()
+def get_tasks():
+    user = service.check_login(auth.username())  # Если существует возвращает объект User
+    if user is None:
+        return server_error('user`s none')
+    tasks = service.get_tasks(user)
     return make_response(jsonify({'tasks': [task.to_dict() for task in tasks]}), 200)
 
 
 # Получить задачу по id
 @app.route('/tasks/<int:task_id>', methods=['GET'])
 @auth.login_required
-def get_task(task_id: int) -> object:
-    user = User.check_login(auth.username())    # Если существует возвращает объект User
-    task = user.tasks.filter_by(id=task_id).first()
+def get_task(task_id: int):
+    user = service.check_login(auth.username())  # Если существует возвращает объект User
+    if user is None:
+        return server_error('user`s none')
+    task = service.get_task(user, task_id)
     if task is None:
         return not_found(f'task {task_id} was not found')
     return make_response(jsonify(task.to_dict()), 200)
@@ -94,17 +54,13 @@ def get_task(task_id: int) -> object:
 @app.route('/done/<int:task_id>', methods=['PUT'])
 @auth.login_required
 def done_task(task_id: int) -> object:
-    user = User.check_login(auth.username())    # Если существует возвращает объект User
-    task = user.tasks.filter_by(id=task_id).first()
-    if task is None:
-        return not_found(f'task {task_id} was not found')
-    task.done = True
-    try:
-        db.session.commit()
-    except SQLAlchemyError as error:
-        db.session.rollback()
-        return server_error('failed to mark the task as completed!')
-    response = {'status': 200, 'message': f'task {task_id} was completed', 'task': task.to_dict()}
+    user = service.check_login(auth.username())  # Если существует возвращает объект User
+    task = service.done_task(user, task_id)
+    if task[0] == 1:
+        return not_found(task[1])
+    elif task[0] == 2:
+        return server_error(task[1])
+    response = {'status': 200, 'message': task[1], 'task': task[2].to_dict()}
     return make_response(jsonify(response), 200)
 
 
@@ -112,7 +68,7 @@ def done_task(task_id: int) -> object:
 @app.route('/create_task', methods=['POST'])
 @auth.login_required
 def create_task() -> object:
-    user = User.check_login(auth.username())    # Если существует возвращает объект User
+    user = service.check_login(auth.username())  # Если существует возвращает объект User
     data = request.get_json() or {}
     if not data:
         return bad_request('missing json request')
@@ -122,21 +78,12 @@ def create_task() -> object:
         return bad_request('the description field is missing')
     elif 'deadline' not in data:
         return bad_request('the deadline field is missing')
-    task = Task()
-    task.user_id = user.id
-    try:
-        data['deadline'] = datetime.strptime(data['deadline'], "%Y-%m-%d %H:%M")    # Из str в форматированный DateTime
-    except ValueError:
-        return bad_request('wrong format deadline (yyyy-mm-dd hh:mm)')
-    task.from_dict(data)
-    task.done = False
-    try:
-        db.session.add(task)
-        db.session.commit()
-    except SQLAlchemyError as error:
-        db.session.rollback()
-        return server_error('failed to create an task!')
-    response = {'status': 201, 'task': task.to_dict()}
+    task = service.create_task(data, user)
+    if task[0] == 1:
+        return bad_request(task[1])
+    elif task[0] == 2:
+        return server_error(task[1])
+    response = {'status': 201, 'task': task[2].to_dict()}
     return make_response(jsonify(response), 201)
 
 
@@ -150,21 +97,12 @@ def create_user() -> object:
         return bad_request('the login field is missing')
     elif 'password' not in data:
         return bad_request('the password field is missing')
-
-    users = User.query.all()
-    list_login = [user.login for user in users]
-    if data['login'] in list_login:
-        return bad_request('this login is busy')
-    user = User()
-    user.login = data['login']
-    user.set_password(data['password'])
-    try:
-        db.session.add(user)
-        db.session.commit()
-    except SQLAlchemyError as error:
-        db.session.rollback()
-        return server_error('failed to add a user!')
-    response = {'status': 201, 'message': f'user {user.login} created'}
+    user = service.create_user(data['login'], data['password'])
+    if user[0] == 1:
+        return bad_request(user[1])
+    elif user[0] == 2:
+        return server_error(user[1])
+    response = {'status': 201, 'message': user[1]}
     return make_response(jsonify(response), 201)
 
 
@@ -172,16 +110,12 @@ def create_user() -> object:
 @app.route('/delete_task/<int:task_id>', methods=['DELETE'])
 @auth.login_required
 def delete_task(task_id: int) -> object:
-    task = Task.query.get(task_id)
-    if task is None:
-        return not_found(f'task {task_id} was not found')
-    try:
-        db.session.delete(task)
-        db.session.commit()
-    except SQLAlchemyError as error:
-        db.session.rollback()
-        return server_error('failed to delete the task!')
-    response = {'status': 200, 'message': f'task {task_id} was deleted'}
+    task = service.delete_task(task_id)
+    if task[0] == 1:
+        return not_found(task[1])
+    elif task[0] == 2:
+        return server_error(task[1])
+    response = {'status': 200, 'message': task[1]}
     return make_response(jsonify(response))
 
 
@@ -189,17 +123,10 @@ def delete_task(task_id: int) -> object:
 @app.route('/delete_user', methods=['DELETE'])
 @auth.login_required
 def delete_user() -> object:
-    user = User.check_login(auth.username())
-    if user is None:
-        return not_found(f'user {auth.username()} was not found')
-    tasks_user = Task.query.filter_by(user_id=user.id).all()
-    try:
-        for task in tasks_user:
-            db.session.delete(task)
-        db.session.delete(user)
-        db.session.commit()
-    except SQLAlchemyError as error:
-        db.session.rollback()
-        return server_error('failed to delete the user!')
-    response = {'status': 200, 'message': f'user {auth.username()} was deleted'}
+    result = service.delete_user(auth.username())
+    if result[0] == 1:
+        return not_found(result[1])
+    elif result[0] == 2:
+        return server_error(result[1])
+    response = {'status': 200, 'message': result[1]}
     return make_response(jsonify(response))

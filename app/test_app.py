@@ -1,7 +1,8 @@
 import unittest
-from app import app
 from json import dumps, loads
 from base64 import b64encode
+
+from app import app
 
 
 class TestRoutes(unittest.TestCase):
@@ -27,7 +28,6 @@ class TestRoutes(unittest.TestCase):
         self.assertEqual(index_page.status_code, 200, 'index - wrong status code')
         self.assertIn(f'List of tasks', index_page.data.decode('UTF-8'))
 
-
     def test_create_user(self):
         # Если никаких данных переданно не было
         user = {}
@@ -46,12 +46,14 @@ class TestRoutes(unittest.TestCase):
         create_user = self.app.post('/create_user', data=dumps(user), content_type='application/json')
         json_answer = loads(create_user.data)
         self.assertEqual(create_user.status_code, 201, 'create_user - wrong status code')
-        self.assertEqual(json_answer['message'], f'user {user["login"]} created', 'create_user - wrong json answer')
+        self.assertEqual(json_answer['message'], f'user with login={user["login"]} created',
+                         'create_user - wrong json answer')
         # Пользователь с таким login существует
         create_user = self.app.post('/create_user', data=dumps(user), content_type='application/json')
         json_answer = loads(create_user.data)
         self.assertEqual(create_user.status_code, 400, 'create_user - wrong status code')
-        self.assertEqual(json_answer['message'], 'this login is busy', 'create_user - wrong json answer')
+        self.assertEqual(json_answer['message'], f'this login={user["login"]} is busy',
+                         'create_user - wrong json answer')
         # Передан только password
         user.pop('login')
         create_user = self.app.post('/create_user', data=dumps(user), content_type='application/json')
@@ -161,7 +163,8 @@ class TestRoutes(unittest.TestCase):
         done_task = self.app.put(f'/done/1', headers=self.auth)
         json_answer = loads(done_task.data)
         self.assertEqual(done_task.status_code, 404, 'done_task - wrong status code')
-        self.assertEqual(json_answer['message'], 'task 1 was not found', 'done_task - wrong json answer [message]')
+        self.assertEqual(json_answer['message'], f'the task with id=1 doesn`t exist',
+                         'done_task - wrong json answer [message]')
         # Добавление и выполнение задачи по id
         task = {'title': 'test task', 'description': 'test description', 'deadline': '2020-03-13 10:00'}
         create_task = self.app.post('/create_task', headers=self.auth, data=dumps(task),
@@ -170,7 +173,7 @@ class TestRoutes(unittest.TestCase):
         done_task = self.app.put(f'/done/{json_answer["task"]["id"]}', headers=self.auth)
         json_answer = loads(done_task.data)
         self.assertEqual(done_task.status_code, 200, 'done_task - wrong status code')
-        self.assertEqual(json_answer['message'], f'task {json_answer["task"]["id"]} was completed',
+        self.assertEqual(json_answer['message'], f'the task with id={json_answer["task"]["id"]} is marked as completed',
                          'done_task - wrong json answer [message]')
         self.assertEqual(json_answer['task']['done'], True, 'done_task - wrong json answer [done]')
 

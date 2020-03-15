@@ -1,5 +1,6 @@
-from app import db
 from werkzeug.security import generate_password_hash, check_password_hash
+
+from app import db
 
 
 class Task(db.Model):
@@ -41,11 +42,3 @@ class User(db.Model):
 
     def check_password(self, password: str) -> bool:
         return check_password_hash(self.password_hash, password)
-
-    @staticmethod
-    def check_login(login: str):
-        user = User.query.filter_by(login=login).first()
-        if user is not None:
-            return user
-        else:
-            return None
